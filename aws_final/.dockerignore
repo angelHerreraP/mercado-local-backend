@@ -1,4 +1,4 @@
-target/
+# # target/ excluded removed to allow copying jar excluded removed to allow copying jar
 !.mvn/wrapper/maven-wrapper.jar
 !mvnw
 !pom.xml
