@@ -48,7 +48,7 @@ public class ProductService {
                         prod.setStock(prod.getStock() + addProductDto.getStock());
                         // Update other fields if provided (Upsert-like behavior)
                         prod.setPrecio(addProductDto.getPrecio());
-                        prod.setDescripcion(addProductDto.getDescripcion());
+                        prod.setDescripcion(addProductDto.getDescription());
                         if (addProductDto.getImageUrl() != null && !addProductDto.getImageUrl().isEmpty()) {
                                 prod.setImageUrl(addProductDto.getImageUrl());
                         }
@@ -57,7 +57,7 @@ public class ProductService {
                         // CASO B: Es nuevo -> Lo creamos de cero (Insert)
                         prod = Product.builder()
                                         .name(addProductDto.getName())
-                                        .descripcion(addProductDto.getDescripcion())
+                                        .descripcion(addProductDto.getDescription())
                                         .precio(addProductDto.getPrecio())
                                         .stock(addProductDto.getStock())
                                         .imageUrl(addProductDto.getImageUrl())
