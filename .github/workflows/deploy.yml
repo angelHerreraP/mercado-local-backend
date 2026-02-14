@@ -1,0 +1,68 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: mercadolocal-backend
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+      working-directory: ./aws_final
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./aws_final
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Refresh Auto Scaling Group
+      run: |
+        LT_ID=$(aws ec2 describe-launch-templates --filters "Name=launch-template-name,Values=mercadolocal-mx-lt-*" --query 'LaunchTemplates[0].LaunchTemplateId' --output text)
+        
+        aws ec2 create-launch-template-version \
+          --launch-template-id $LT_ID \
+          --source-version '$Latest' \
+          --launch-template-data '{"ImageId":"'${{ env.AMI_ID }}'"}'
+        
+        ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --filters "Name=tag:Name,Values=mercadolocal-mx-asg-node" --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text)
+        
+        aws autoscaling start-instance-refresh \
+          --auto-scaling-group-name $ASG_NAME \
+          --preferences '{"MinHealthyPercentage": 50, "InstanceWarmup": 300}'

@@ -1,0 +1,32 @@
+services:
+  db:
+    image: mysql:9.0
+    container_name: mysql-db
+    environment:
+      MYSQL_DATABASE: finalProject
+      MYSQL_ROOT_PASSWORD: "Viper-1018@@FELIPE2"
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  api:
+    build: .
+    container_name: spring-api
+    ports:
+      - "8081:8081"
+    environment:
+      # 1. URL de conexión (usa el nombre del servicio 'db')
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/finalProject?serverTimezone=UTC&useSSL=false
+      # 2. Credenciales (usando los nombres exactos de tu application.properties)
+      - DB_USER=root
+      - DB_PASSWORD=Viper-1018@@FELIPE2
+      # 3. Control de base de datos (puedes cambiarlo a 'update' si necesitas crear tablas)
+      - DDL_AUTO=update
+      # 4. Tu llave secreta para pruebas locales
+      - JWT_SECRET=F3l1p3_esta_es_una_llave_secreta_muy_larga_y_segura_de_al_menos_256_bits_LOCAL_SECRET_KEY
+    depends_on:
+      db:
+        condition: service_healthy

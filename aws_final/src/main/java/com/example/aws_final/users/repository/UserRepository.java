@@ -1,0 +1,14 @@
+package com.example.aws_final.users.repository;
+
+import com.example.aws_final.users.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Integer> {
+    Optional<User> findByUsername(String username);
+    Optional<User> findByEmail(String email);
+    boolean existsByUsername(String username);
+    boolean existsByEmail(String email);
+}
+//El repository es "Trae data o modifica data"
