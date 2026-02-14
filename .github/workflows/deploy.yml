@@ -48,21 +48,24 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./aws_final
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./aws_final
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Refresh Auto Scaling Group
       run: |
-        LT_ID=$(aws ec2 describe-launch-templates --filters "Name=launch-template-name,Values=mercadolocal-mx-lt-*" --query 'LaunchTemplates[0].LaunchTemplateId' --output text)
-        
-        aws ec2 create-launch-template-version \
-          --launch-template-id $LT_ID \
-          --source-version '$Latest' \
-          --launch-template-data '{"ImageId":"'${{ env.AMI_ID }}'"}'
-        
+        # Get ASG Name by Tag
         ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --filters "Name=tag:Name,Values=mercadolocal-mx-asg-node" --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text)
         
+        if [ "$ASG_NAME" == "None" ] || [ -z "$ASG_NAME" ]; then
+          echo "Error: Auto Scaling Group not found!"
+          exit 1
+        fi
+        
+        echo "Found ASG: $ASG_NAME"
+        
+        # Start Instance Refresh (Rolling update)
         aws autoscaling start-instance-refresh \
           --auto-scaling-group-name $ASG_NAME \
           --preferences '{"MinHealthyPercentage": 50, "InstanceWarmup": 300}'
